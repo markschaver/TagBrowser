@@ -1,0 +1,19 @@
+{
+	"name": "TagBrowser",
+	"version": "0.1",
+	"sublime_text": ">=3000",
+	"platforms": [
+		"*"
+	],
+	"python_version": "3.3",
+	"url": "https://github.com/markschaver/TagBrowser",
+	"issues": "https://github.com/markschaver/TagBrowser",
+	"author": [
+		"markschaver"
+	],
+	"description": "Browse tags in Markdown and text files.",
+	"labels": [],
+	"libraries": [],
+	"install_time": 1748711168.369161,
+	"release_time": "2026-02-08 17:24:27"
+}

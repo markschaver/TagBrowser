@@ -1,0 +1,23 @@
+[
+    {
+        "id": "view",
+        "children": [
+            {
+                "caption": "-"
+            },
+            {
+                "caption": "Tag Browser",
+                "children": [
+                    {
+                        "caption": "Toggle Panel",
+                        "command": "tag_browser_toggle"
+                    },
+                    {
+                        "caption": "Refresh",
+                        "command": "tag_browser_refresh"
+                    }
+                ]
+            }
+        ]
+    }
+]

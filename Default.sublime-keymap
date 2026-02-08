@@ -1,0 +1,26 @@
+[
+    {
+        "keys": ["ctrl+shift+t"],
+        "command": "tag_browser_toggle"
+    },
+    {
+        "keys": ["enter"],
+        "command": "tag_browser_open_result",
+        "context": [
+            {
+                "key": "setting.tag_browser_results",
+                "operand": true
+            }
+        ]
+    },
+    {
+        "keys": ["double_click"],
+        "command": "tag_browser_open_result",
+        "context": [
+            {
+                "key": "setting.tag_browser_results",
+                "operand": true
+            }
+        ]
+    }
+]
