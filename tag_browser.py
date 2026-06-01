@@ -5,7 +5,7 @@ import re
 import threading
 
 
-TAG_PATTERN = re.compile(r'(?<![\w\\/])#([A-Za-z_]\w*)\b')
+TAG_PATTERN = re.compile(r'(?<![\w\\/])#([A-Za-z_][\w/-]*)')
 
 # File extensions to scan (text-based files)
 TEXT_EXTENSIONS = {
@@ -590,7 +590,7 @@ def _highlight_tag_when_ready(view, tag):
 
 def _highlight_tag_in_view(view, tag):
     """Find and select the first occurrence of the tag in the view."""
-    pattern = r'#' + re.escape(tag) + r'\b'
+    pattern = r'#' + re.escape(tag) + r'(?![\w/-])'
     region = view.find(pattern, 0)
     if region is not None and not region.empty():
         view.sel().clear()
