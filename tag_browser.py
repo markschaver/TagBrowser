@@ -233,6 +233,28 @@ def _close_panel(window):
             pass
         state["sheet"] = None
 
+        # Close any other sheets that might still be in group 0 (e.g. a
+        # stale loading sheet) so collapsing the layout doesn't leave a
+        # blank pane behind.
+        try:
+            for sheet in window.sheets_in_group(0):
+                try:
+                    sheet.close()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # Move any remaining views in group 0 over to group 1 before
+        # collapsing the layout.
+        try:
+            for view in window.views_in_group(0):
+                window.set_view_index(view, 1, -1)
+        except Exception:
+            pass
+
+        window.focus_group(1 if len(window.views_in_group(1)) else 0)
+
         # Restore original layout
         if state["original_layout"]:
             window.set_layout(state["original_layout"])
