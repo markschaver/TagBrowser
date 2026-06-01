@@ -1,6 +1,6 @@
 # TagBrowser
 
-Vibe-coded Sublime Text plugin to browse #tags in Markdown and text files.
+Sublime Text plugin to browse #tags in Markdown and text files.
 
 Supports Obsidian-style tags, including hyphens (`#global-warming`) and nested tags (`#topic/subtopic`).
 
