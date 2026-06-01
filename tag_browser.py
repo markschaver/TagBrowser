@@ -22,7 +22,10 @@ SKIP_DIRS = {
 MAX_FILE_SIZE = 1024 * 1024
 
 # Track state per window
-_panel_state = {}  # window.id() -> {"sheet": Sheet, "tag_data": dict, "original_layout": dict}
+_panel_state = {}  # window.id() -> {"sheet": Sheet, "tag_data": dict, "original_layout": dict, "sort": str}
+
+# Sort modes: "name_asc", "name_desc", "count_asc", "count_desc"
+DEFAULT_SORT = "name_asc"
 
 
 def _should_scan_file(filepath):
@@ -79,7 +82,18 @@ def scan_project_for_tags(window):
     return tag_files
 
 
-def generate_html(tag_data):
+def _sort_tags(tag_data, sort_mode):
+    keys = list(tag_data.keys())
+    if sort_mode == "name_desc":
+        return sorted(keys, key=lambda t: t.lower(), reverse=True)
+    if sort_mode == "count_asc":
+        return sorted(keys, key=lambda t: (len(tag_data[t]), t.lower()))
+    if sort_mode == "count_desc":
+        return sorted(keys, key=lambda t: (-len(tag_data[t]), t.lower()))
+    return sorted(keys, key=lambda t: t.lower())
+
+
+def generate_html(tag_data, sort_mode=DEFAULT_SORT):
     """Build minihtml content for the tag browser panel."""
     if not tag_data:
         return '''
@@ -92,7 +106,7 @@ def generate_html(tag_data):
         </body>
         '''
 
-    sorted_tags = sorted(tag_data.keys(), key=lambda t: t.lower())
+    sorted_tags = _sort_tags(tag_data, sort_mode)
     total_tags = len(sorted_tags)
     total_files = len(set(f for files in tag_data.values() for f in files))
 
@@ -151,6 +165,20 @@ def generate_html(tag_data):
                 color: color(var(--foreground) alpha(0.5));
                 font-size: 0.9rem;
             }}
+            .sort-bar {{
+                margin: 4px 0 8px 0;
+                font-size: 0.8rem;
+                color: color(var(--foreground) alpha(0.5));
+            }}
+            .sort-bar a {{
+                text-decoration: none;
+                color: color(var(--foreground) alpha(0.6));
+                margin-right: 6px;
+            }}
+            .sort-bar a.active {{
+                color: var(--bluish);
+                font-weight: bold;
+            }}
             .refresh-link {{
                 margin-top: 10px;
                 padding-top: 6px;
@@ -164,6 +192,13 @@ def generate_html(tag_data):
         </style>
         <h2>Tags</h2>
         <div class="summary">{total_tags} tags in {total_files} files</div>
+        <div class="sort-bar">
+            Sort:
+            <a class="{name_asc_cls}" href="{name_asc_url}">name &#9650;</a>
+            <a class="{name_desc_cls}" href="{name_desc_url}">name &#9660;</a>
+            <a class="{count_asc_cls}" href="{count_asc_url}">count &#9650;</a>
+            <a class="{count_desc_cls}" href="{count_desc_url}">count &#9660;</a>
+        </div>
         {rows}
         <div class="refresh-link">
             <a href="{refresh_url}">Refresh</a>
@@ -173,14 +208,22 @@ def generate_html(tag_data):
         rows=rows,
         total_tags=total_tags,
         total_files=total_files,
-        refresh_url=sublime.command_url("tag_browser_refresh", {})
+        refresh_url=sublime.command_url("tag_browser_refresh", {}),
+        name_asc_url=sublime.command_url("tag_browser_sort", {"mode": "name_asc"}),
+        name_desc_url=sublime.command_url("tag_browser_sort", {"mode": "name_desc"}),
+        count_asc_url=sublime.command_url("tag_browser_sort", {"mode": "count_asc"}),
+        count_desc_url=sublime.command_url("tag_browser_sort", {"mode": "count_desc"}),
+        name_asc_cls="active" if sort_mode == "name_asc" else "",
+        name_desc_cls="active" if sort_mode == "name_desc" else "",
+        count_asc_cls="active" if sort_mode == "count_asc" else "",
+        count_desc_cls="active" if sort_mode == "count_desc" else "",
     )
 
 
 def _get_state(window):
     wid = window.id()
     if wid not in _panel_state:
-        _panel_state[wid] = {"sheet": None, "tag_data": {}, "original_layout": None}
+        _panel_state[wid] = {"sheet": None, "tag_data": {}, "original_layout": None, "sort": DEFAULT_SORT}
     return _panel_state[wid]
 
 
@@ -269,7 +312,7 @@ class TagBrowserToggleCommand(sublime_plugin.WindowCommand):
         tag_data = scan_project_for_tags(window)
         state = _get_state(window)
         state["tag_data"] = tag_data
-        html = generate_html(tag_data)
+        html = generate_html(tag_data, state.get("sort", DEFAULT_SORT))
 
         # Update on main thread
         sublime.set_timeout(lambda: self._update_sheet(window, html), 0)
@@ -323,7 +366,7 @@ class TagBrowserRefreshCommand(sublime_plugin.WindowCommand):
         tag_data = scan_project_for_tags(window)
         state = _get_state(window)
         state["tag_data"] = tag_data
-        html = generate_html(tag_data)
+        html = generate_html(tag_data, state.get("sort", DEFAULT_SORT))
         sublime.set_timeout(lambda: self._update_sheet(window, html), 0)
 
     def _update_sheet(self, window, html):
@@ -335,6 +378,26 @@ class TagBrowserRefreshCommand(sublime_plugin.WindowCommand):
                 pass
             state["sheet"] = window.new_html_sheet("Tags", html, group=0)
             window.focus_group(1)
+
+
+class TagBrowserSortCommand(sublime_plugin.WindowCommand):
+    """Change the sort order of the tag panel."""
+
+    def run(self, mode):
+        window = self.window
+        if mode not in ("name_asc", "name_desc", "count_asc", "count_desc"):
+            return
+        state = _get_state(window)
+        state["sort"] = mode
+        if not _is_panel_open(window):
+            return
+        html = generate_html(state.get("tag_data", {}), mode)
+        try:
+            state["sheet"].close()
+        except Exception:
+            pass
+        state["sheet"] = window.new_html_sheet("Tags", html, group=0)
+        window.focus_group(1)
 
 
 class TagBrowserSearchCommand(sublime_plugin.WindowCommand):
