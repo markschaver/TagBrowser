@@ -446,11 +446,23 @@ class TagBrowserSearchCommand(sublime_plugin.WindowCommand):
 
         results_text = header + body
 
-        # Create a new scratch view for results
-        results_view = window.new_file()
+        # Reuse an existing tag results view if one exists in this window
+        results_view = None
+        for v in window.views():
+            if v.settings().get("tag_browser_results"):
+                results_view = v
+                break
+
+        if results_view is None:
+            results_view = window.new_file()
+            results_view.set_scratch(True)
+        else:
+            window.focus_view(results_view)
+
         results_view.set_name("Tag Results: #{}".format(tag))
-        results_view.set_scratch(True)
         results_view.set_read_only(False)
+        results_view.run_command("select_all")
+        results_view.run_command("right_delete")
         results_view.run_command("append", {"characters": results_text})
         results_view.set_read_only(True)
         results_view.settings().set("tag_browser_results", True)
