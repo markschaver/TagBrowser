@@ -194,10 +194,8 @@ def generate_html(tag_data, sort_mode=DEFAULT_SORT):
         <div class="summary">{total_tags} tags in {total_files} files</div>
         <div class="sort-bar">
             Sort:
-            <a class="{name_asc_cls}" href="{name_asc_url}">name &#9650;</a>
-            <a class="{name_desc_cls}" href="{name_desc_url}">name &#9660;</a>
-            <a class="{count_asc_cls}" href="{count_asc_url}">count &#9650;</a>
-            <a class="{count_desc_cls}" href="{count_desc_url}">count &#9660;</a>
+            <a class="{name_cls}" href="{name_url}">name {name_arrow}</a>
+            <a class="{count_cls}" href="{count_url}">count {count_arrow}</a>
         </div>
         {rows}
         <div class="refresh-link">
@@ -209,14 +207,12 @@ def generate_html(tag_data, sort_mode=DEFAULT_SORT):
         total_tags=total_tags,
         total_files=total_files,
         refresh_url=sublime.command_url("tag_browser_refresh", {}),
-        name_asc_url=sublime.command_url("tag_browser_sort", {"mode": "name_asc"}),
-        name_desc_url=sublime.command_url("tag_browser_sort", {"mode": "name_desc"}),
-        count_asc_url=sublime.command_url("tag_browser_sort", {"mode": "count_asc"}),
-        count_desc_url=sublime.command_url("tag_browser_sort", {"mode": "count_desc"}),
-        name_asc_cls="active" if sort_mode == "name_asc" else "",
-        name_desc_cls="active" if sort_mode == "name_desc" else "",
-        count_asc_cls="active" if sort_mode == "count_asc" else "",
-        count_desc_cls="active" if sort_mode == "count_desc" else "",
+        name_url=sublime.command_url("tag_browser_sort", {"mode": "name_desc" if sort_mode == "name_asc" else "name_asc"}),
+        count_url=sublime.command_url("tag_browser_sort", {"mode": "count_asc" if sort_mode == "count_desc" else "count_desc"}),
+        name_cls="active" if sort_mode.startswith("name") else "",
+        count_cls="active" if sort_mode.startswith("count") else "",
+        name_arrow="&#9660;" if sort_mode == "name_desc" else "&#9650;",
+        count_arrow="&#9650;" if sort_mode == "count_asc" else "&#9660;",
     )
 
 
