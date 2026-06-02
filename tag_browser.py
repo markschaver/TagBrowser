@@ -579,7 +579,10 @@ class TagBrowserOpenResultCommand(sublime_plugin.TextCommand):
             if abs_path:
                 active_group = 1 if _is_panel_open(window) else 0
                 window.focus_group(active_group)
-                window.open_file(abs_path)
+                opened = window.open_file(abs_path)
+                tag = view.settings().get("tag_browser_tag")
+                if tag:
+                    _mark_all_tag_when_ready(opened, tag)
 
         # Check if this is a line match (starts with spaces, has line number)
         elif line_text and line_text.startswith('  '):
@@ -604,10 +607,13 @@ class TagBrowserOpenResultCommand(sublime_plugin.TextCommand):
                             active_group = 1 if _is_panel_open(window) else 0
                             window.focus_group(active_group)
                             # Open file at specific line using file:line syntax
-                            window.open_file(
+                            opened = window.open_file(
                                 "{}:{}".format(abs_path, line_num),
                                 sublime.ENCODED_POSITION
                             )
+                            tag = view.settings().get("tag_browser_tag")
+                            if tag:
+                                _mark_all_tag_when_ready(opened, tag)
                         break
 
 
@@ -653,6 +659,30 @@ def _highlight_tag_in_view(view, tag):
         view.sel().clear()
         view.sel().add(region)
         view.show_at_center(region)
+
+
+def _mark_all_tag_when_ready(view, tag):
+    """Wait for view to finish loading, then yellow-highlight all occurrences."""
+    if view.is_loading():
+        sublime.set_timeout(lambda: _mark_all_tag_when_ready(view, tag), 100)
+        return
+    _mark_all_tag_in_view(view, tag)
+
+
+def _mark_all_tag_in_view(view, tag):
+    """Add a yellow region overlay on every occurrence of #tag in the view."""
+    pattern = r'#' + re.escape(tag) + r'(?![\w/-])'
+    regions = view.find_all(pattern)
+    key = "tag_browser_highlight"
+    if not regions:
+        view.erase_regions(key)
+        return
+    view.add_regions(
+        key,
+        regions,
+        scope="region.yellowish",
+        flags=sublime.DRAW_NO_OUTLINE,
+    )
 
 
 class TagBrowserEventListener(sublime_plugin.EventListener):
