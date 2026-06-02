@@ -673,8 +673,10 @@ def _mark_all_tag_in_view(view, tag):
     """Select every occurrence of #tag — same look as Find > Quick Find All."""
     pattern = r'#' + re.escape(tag) + r'(?![\w/-])'
     regions = view.find_all(pattern)
-    # Clear stale overlay from older versions
+    # Clear stale overlays and phantoms left by older versions of this
+    # plugin so the multi-selection is the only visual marker.
     view.erase_regions("tag_browser_highlight")
+    view.erase_phantoms("tag_browser_highlight")
     if not regions:
         return
     sel = view.sel()
