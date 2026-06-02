@@ -661,11 +661,8 @@ def _highlight_tag_in_view(view, tag):
         view.show_at_center(region)
 
 
-PHANTOM_KEY = "tag_browser_highlight"
-
-
 def _mark_all_tag_when_ready(view, tag):
-    """Wait for view to finish loading, then yellow-mark all occurrences."""
+    """Wait for view to finish loading, then yellow-highlight all occurrences."""
     if view.is_loading():
         sublime.set_timeout(lambda: _mark_all_tag_when_ready(view, tag), 100)
         return
@@ -673,31 +670,19 @@ def _mark_all_tag_when_ready(view, tag):
 
 
 def _mark_all_tag_in_view(view, tag):
-    """Add a yellow phantom marker after every occurrence of #tag."""
+    """Add a yellow region overlay on every occurrence of #tag in the view."""
     pattern = r'#' + re.escape(tag) + r'(?![\w/-])'
     regions = view.find_all(pattern)
-    # Clear stale region overlay (older versions used add_regions)
-    view.erase_regions(PHANTOM_KEY)
-    view.erase_phantoms(PHANTOM_KEY)
+    key = "tag_browser_highlight"
     if not regions:
+        view.erase_regions(key)
         return
-    marker_html = (
-        '<body>'
-        '<span style="background-color: #FFEB3B; color: #000000;'
-        ' padding: 0 3px; border-radius: 2px; font-weight: bold;">'
-        '&#9733;'
-        '</span>'
-        '</body>'
+    view.add_regions(
+        key,
+        regions,
+        scope="region.yellowish",
+        flags=sublime.DRAW_NO_OUTLINE,
     )
-    for r in regions:
-        # Insert the marker just after each match; LAYOUT_INLINE keeps it
-        # on the same line, so the tag appears followed by a yellow star.
-        view.add_phantom(
-            PHANTOM_KEY,
-            sublime.Region(r.end(), r.end()),
-            marker_html,
-            sublime.LAYOUT_INLINE,
-        )
 
 
 class TagBrowserEventListener(sublime_plugin.EventListener):
