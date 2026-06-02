@@ -670,19 +670,19 @@ def _mark_all_tag_when_ready(view, tag):
 
 
 def _mark_all_tag_in_view(view, tag):
-    """Add a yellow region overlay on every occurrence of #tag in the view."""
+    """Select every occurrence of #tag — same look as Find > Quick Find All."""
     pattern = r'#' + re.escape(tag) + r'(?![\w/-])'
     regions = view.find_all(pattern)
-    key = "tag_browser_highlight"
+    # Clear stale overlay from older versions
+    view.erase_regions("tag_browser_highlight")
     if not regions:
-        view.erase_regions(key)
         return
-    view.add_regions(
-        key,
-        regions,
-        scope="region.yellowish",
-        flags=sublime.DRAW_NO_OUTLINE,
-    )
+    sel = view.sel()
+    sel.clear()
+    for r in regions:
+        sel.add(r)
+    # Don't auto-scroll — open_file already positioned us on the requested
+    # line, and yanking the viewport to the first match is disorienting.
 
 
 class TagBrowserEventListener(sublime_plugin.EventListener):
