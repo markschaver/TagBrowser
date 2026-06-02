@@ -40,6 +40,41 @@ def _should_scan_file(filepath):
     return ext.lower() in TEXT_EXTENSIONS
 
 
+def scan_file_for_tags(filepath):
+    """Scan a single file. Returns {tag: [(line_num, line_text), ...]}."""
+    result = {}
+    try:
+        if os.path.getsize(filepath) > MAX_FILE_SIZE:
+            return result
+    except OSError:
+        return result
+    try:
+        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+    except (IOError, OSError):
+        return result
+    for line_num, line in enumerate(lines, 1):
+        for tag in set(TAG_PATTERN.findall(line)):
+            result.setdefault(tag, []).append((line_num, line.rstrip('\n\r')))
+    return result
+
+
+def update_tag_data_for_file(tag_data, filepath):
+    """Refresh entries for a single file inside an existing tag_data dict."""
+    # Remove existing entries for this file
+    for tag in list(tag_data.keys()):
+        if filepath in tag_data[tag]:
+            del tag_data[tag][filepath]
+            if not tag_data[tag]:
+                del tag_data[tag]
+    # Add fresh entries if the file is still scannable and exists
+    if not _should_scan_file(filepath) or not os.path.exists(filepath):
+        return
+    new_matches = scan_file_for_tags(filepath)
+    for tag, matches in new_matches.items():
+        tag_data.setdefault(tag, {})[filepath] = matches
+
+
 def scan_project_for_tags(window):
     """Scan all project folders for hashtag patterns.
 
@@ -625,6 +660,27 @@ class TagBrowserEventListener(sublime_plugin.EventListener):
 
     def on_post_save_async(self, view):
         window = view.window()
-        if window and _is_panel_open(window):
-            # Debounce: only refresh if no other refresh is pending
+        if not window or not _is_panel_open(window):
+            return
+        filepath = view.file_name()
+        if not filepath:
             window.run_command("tag_browser_refresh")
+            return
+
+        # Only the saved file changed — patch tag_data incrementally and
+        # re-render the panel without a full project rescan.
+        state = _get_state(window)
+        update_tag_data_for_file(state["tag_data"], filepath)
+        html = generate_html(state["tag_data"], state.get("sort", DEFAULT_SORT))
+
+        def _swap():
+            if state["sheet"] is None:
+                return
+            try:
+                state["sheet"].close()
+            except Exception:
+                pass
+            state["sheet"] = window.new_html_sheet("Tags", html, group=0)
+            window.focus_group(1)
+
+        sublime.set_timeout(_swap, 0)
