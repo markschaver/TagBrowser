@@ -680,7 +680,7 @@ def _mark_all_tag_in_view(view, tag):
     view.add_regions(
         key,
         regions,
-        scope="tagbrowser.highlight",
+        scope="region.yellowish",
         flags=sublime.DRAW_NO_OUTLINE,
     )
 
