@@ -1,0 +1,10 @@
+{
+    "rules": [
+        {
+            "name": "TagBrowser tag highlight",
+            "scope": "tagbrowser.highlight",
+            "foreground": "#FFEB3B",
+            "background": "#FFEB3B"
+        }
+    ]
+}
