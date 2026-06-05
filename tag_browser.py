@@ -128,19 +128,42 @@ def _sort_tags(tag_data, sort_mode):
     return sorted(keys, key=lambda t: t.lower())
 
 
-def _heading_color(window):
-    """Look up the color used for Markdown headings in the active scheme."""
+def _lookup_heading_color(window):
+    """Resolve the markup.heading foreground color from the active scheme."""
     fallback = "var(--bluish)"
     if window is None:
         return fallback
-    view = window.active_view()
-    if view is None:
-        return fallback
-    try:
-        style = view.style_for_scope("markup.heading")
-    except Exception:
-        return fallback
-    return style.get("foreground") or fallback
+    views_to_try = []
+    active = window.active_view()
+    if active is not None:
+        views_to_try.append(active)
+    views_to_try.extend(window.views())
+    for view in views_to_try:
+        for scope in ("markup.heading.markdown", "markup.heading"):
+            try:
+                style = view.style_for_scope(scope)
+            except Exception:
+                continue
+            color = style.get("foreground")
+            if color:
+                return color
+    return fallback
+
+
+def _heading_color(window):
+    """Return cached heading color for the window, computing it if needed.
+
+    Caching matters because clicking a link inside the HTML sheet can make
+    window.active_view() return None or the sheet itself, which would cause
+    subsequent renders to fall back to var(--bluish).
+    """
+    state = _get_state(window) if window else None
+    if state and state.get("link_color"):
+        return state["link_color"]
+    color = _lookup_heading_color(window)
+    if state and color and color != "var(--bluish)":
+        state["link_color"] = color
+    return color
 
 
 def generate_html(tag_data, sort_mode=DEFAULT_SORT, link_color=None):
@@ -272,7 +295,13 @@ def generate_html(tag_data, sort_mode=DEFAULT_SORT, link_color=None):
 def _get_state(window):
     wid = window.id()
     if wid not in _panel_state:
-        _panel_state[wid] = {"sheet": None, "tag_data": {}, "original_layout": None, "sort": DEFAULT_SORT}
+        _panel_state[wid] = {
+            "sheet": None,
+            "tag_data": {},
+            "original_layout": None,
+            "sort": DEFAULT_SORT,
+            "link_color": None,
+        }
     return _panel_state[wid]
 
 
