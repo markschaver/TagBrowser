@@ -306,49 +306,59 @@ def _get_state(window):
 
 
 def _close_panel(window):
-    """Close the tag browser panel and restore original layout."""
+    """Close the tag browser panel and collapse the side pane."""
     state = _get_state(window)
-    if state["sheet"] is not None:
+    if state["sheet"] is None:
+        return False
+
+    # Close the html sheet and any other stale sheets in group 0.
+    try:
+        state["sheet"].close()
+    except Exception:
+        pass
+    state["sheet"] = None
+    try:
+        for sheet in window.sheets_in_group(0):
+            try:
+                sheet.close()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # Move any remaining views out of group 0 so close_pane has nothing
+    # left to swallow.
+    try:
+        for view in window.views_in_group(0):
+            window.set_view_index(view, 1, -1)
+    except Exception:
+        pass
+
+    # Focus group 0 and use Sublime's built-in close_pane, which is more
+    # reliable than set_layout for collapsing back to a single group and
+    # does not leave a blank pane behind.
+    closed = False
+    try:
+        window.focus_group(0)
+        window.run_command("close_pane")
+        closed = True
+    except Exception:
+        closed = False
+
+    if not closed:
+        # Fallback to restoring the saved layout (or a single cell).
+        target = state.get("original_layout") or {
+            "cols": [0.0, 1.0],
+            "rows": [0.0, 1.0],
+            "cells": [[0, 0, 1, 1]],
+        }
         try:
-            state["sheet"].close()
+            window.set_layout(target)
         except Exception:
             pass
-        state["sheet"] = None
 
-        # Close any other sheets that might still be in group 0 (e.g. a
-        # stale loading sheet) so collapsing the layout doesn't leave a
-        # blank pane behind.
-        try:
-            for sheet in window.sheets_in_group(0):
-                try:
-                    sheet.close()
-                except Exception:
-                    pass
-        except Exception:
-            pass
-
-        # Move any remaining views in group 0 over to group 1 before
-        # collapsing the layout.
-        try:
-            for view in window.views_in_group(0):
-                window.set_view_index(view, 1, -1)
-        except Exception:
-            pass
-
-        window.focus_group(1 if len(window.views_in_group(1)) else 0)
-
-        # Restore original layout
-        if state["original_layout"]:
-            window.set_layout(state["original_layout"])
-            state["original_layout"] = None
-        else:
-            window.set_layout({
-                "cols": [0.0, 1.0],
-                "rows": [0.0, 1.0],
-                "cells": [[0, 0, 1, 1]]
-            })
-        return True
-    return False
+    state["original_layout"] = None
+    return True
 
 
 def _is_panel_open(window):
