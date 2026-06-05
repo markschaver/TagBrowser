@@ -128,7 +128,22 @@ def _sort_tags(tag_data, sort_mode):
     return sorted(keys, key=lambda t: t.lower())
 
 
-def generate_html(tag_data, sort_mode=DEFAULT_SORT):
+def _heading_color(window):
+    """Look up the color used for Markdown headings in the active scheme."""
+    fallback = "var(--bluish)"
+    if window is None:
+        return fallback
+    view = window.active_view()
+    if view is None:
+        return fallback
+    try:
+        style = view.style_for_scope("markup.heading")
+    except Exception:
+        return fallback
+    return style.get("foreground") or fallback
+
+
+def generate_html(tag_data, sort_mode=DEFAULT_SORT, link_color=None):
     """Build minihtml content for the tag browser panel."""
     if not tag_data:
         return '''
@@ -141,6 +156,8 @@ def generate_html(tag_data, sort_mode=DEFAULT_SORT):
         </body>
         '''
 
+    if link_color is None:
+        link_color = "var(--bluish)"
     sorted_tags = _sort_tags(tag_data, sort_mode)
     total_tags = len(sorted_tags)
     total_files = len(set(f for files in tag_data.values() for f in files))
@@ -194,7 +211,7 @@ def generate_html(tag_data, sort_mode=DEFAULT_SORT):
             }}
             a.tag {{
                 text-decoration: none;
-                color: var(--bluish);
+                color: {link_color};
             }}
             .count {{
                 color: color(var(--foreground) alpha(0.5));
@@ -211,7 +228,7 @@ def generate_html(tag_data, sort_mode=DEFAULT_SORT):
                 margin-right: 6px;
             }}
             .sort-bar a.active {{
-                color: var(--bluish);
+                color: {link_color};
                 font-weight: bold;
             }}
             .refresh-link {{
@@ -248,6 +265,7 @@ def generate_html(tag_data, sort_mode=DEFAULT_SORT):
         count_cls="active" if sort_mode.startswith("count") else "",
         name_arrow="&#9660;" if sort_mode == "name_desc" else "&#9650;",
         count_arrow="&#9650;" if sort_mode == "count_asc" else "&#9660;",
+        link_color=link_color,
     )
 
 
@@ -365,7 +383,7 @@ class TagBrowserToggleCommand(sublime_plugin.WindowCommand):
         tag_data = scan_project_for_tags(window)
         state = _get_state(window)
         state["tag_data"] = tag_data
-        html = generate_html(tag_data, state.get("sort", DEFAULT_SORT))
+        html = generate_html(tag_data, state.get("sort", DEFAULT_SORT), _heading_color(window))
 
         # Update on main thread
         sublime.set_timeout(lambda: self._update_sheet(window, html), 0)
@@ -419,7 +437,7 @@ class TagBrowserRefreshCommand(sublime_plugin.WindowCommand):
         tag_data = scan_project_for_tags(window)
         state = _get_state(window)
         state["tag_data"] = tag_data
-        html = generate_html(tag_data, state.get("sort", DEFAULT_SORT))
+        html = generate_html(tag_data, state.get("sort", DEFAULT_SORT), _heading_color(window))
         sublime.set_timeout(lambda: self._update_sheet(window, html), 0)
 
     def _update_sheet(self, window, html):
@@ -444,7 +462,7 @@ class TagBrowserSortCommand(sublime_plugin.WindowCommand):
         state["sort"] = mode
         if not _is_panel_open(window):
             return
-        html = generate_html(state.get("tag_data", {}), mode)
+        html = generate_html(state.get("tag_data", {}), mode, _heading_color(window))
         try:
             state["sheet"].close()
         except Exception:
@@ -703,7 +721,7 @@ class TagBrowserEventListener(sublime_plugin.EventListener):
         # re-render the panel without a full project rescan.
         state = _get_state(window)
         update_tag_data_for_file(state["tag_data"], filepath)
-        html = generate_html(state["tag_data"], state.get("sort", DEFAULT_SORT))
+        html = generate_html(state["tag_data"], state.get("sort", DEFAULT_SORT), _heading_color(window))
 
         def _swap():
             if state["sheet"] is None:
